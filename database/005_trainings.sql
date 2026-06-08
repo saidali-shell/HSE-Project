@@ -7,7 +7,8 @@ CREATE TABLE trainings (
     description TEXT NOT NULL,
     instructor VARCHAR(255) NOT NULL,
     assigned_to UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
-    status VARCHAR(20) NOT NULL DEFAULT 'Assigned' CHECK (status IN ('Assigned', 'In Progress', 'Completed')),
+    status VARCHAR(20) NOT NULL DEFAULT 'Incomplete' CHECK (status IN ('Completed', 'Incomplete')),
+
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     created_by UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,

@@ -126,7 +126,7 @@ class Training(Base):
     description = Column(Text, nullable=False)
     instructor = Column(String(255), nullable=False)
     assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
-    status = Column(String(20), nullable=False, default="Assigned")  # 'Assigned', 'In Progress', 'Completed'
+    status = Column(String(20), nullable=False, default="Incomplete",info={"check": "status IN ('completed','Incomplete')"})  # 'Completed', 'Incomplete'
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)

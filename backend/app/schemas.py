@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # Valid Enum values for roles and statuses
@@ -126,3 +126,138 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Schemas for Training module
+class TrainingBase(BaseModel):
+    incident_id: Optional[uuid.UUID] = None
+    title: str = Field(..., max_length=255)
+    training_type: str = Field(..., max_length=100)
+    description: str
+    instructor: str = Field(..., max_length=255)
+    assigned_to: uuid.UUID
+    status: Literal["Completed", "Incomplete"] = "Incomplete"
+    start_date: datetime
+    end_date: datetime
+
+class TrainingCreate(TrainingBase):
+    pass
+
+class TrainingUpdate(BaseModel):
+    title: Optional[str] = None
+    training_type: Optional[str] = None
+    description: Optional[str] = None
+    instructor: Optional[str] = None
+    assigned_to: Optional[uuid.UUID] = None
+    status: Optional[Literal["Completed", "Incomplete"]] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+class TrainingResponse(TrainingBase):
+    training_id: uuid.UUID
+    created_by: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Schemas for Incident module
+class IncidentBase(BaseModel):
+    title: str = Field(..., max_length=255)
+    description: str
+    incident_type: str = Field(..., max_length=100)
+    severity: Literal["Low", "Medium", "High", "Critical"]
+    location: str
+    proof_image_path: Optional[str] = None
+    incident_date: datetime
+    status: Literal["Reported", "Under Investigation", "Resolved", "Closed"] = "Reported"
+    assigned_to: Optional[uuid.UUID] = None
+
+class IncidentCreate(IncidentBase):
+    reported_by: uuid.UUID
+
+class IncidentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    incident_type: Optional[str] = None
+    severity: Optional[Literal["Low", "Medium", "High", "Critical"]] = None
+    location: Optional[str] = None
+    proof_image_path: Optional[str] = None
+    incident_date: Optional[datetime] = None
+    status: Optional[Literal["Reported", "Under Investigation", "Resolved", "Closed"]] = None
+    assigned_to: Optional[uuid.UUID] = None
+
+class IncidentResponse(IncidentBase):
+    incident_id: uuid.UUID
+    reported_by: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Schemas for Task module
+class TaskBase(BaseModel):
+    title: str = Field(..., max_length=255)
+    description: str
+    priority: Literal["Low", "Medium", "High", "Urgent"] = "Medium"
+    status: Literal["To Do", "In Progress", "Review", "Done"] = "To Do"
+    due_date: datetime
+    is_deleted: bool = False
+
+class TaskCreate(TaskBase):
+    assigned_to: uuid.UUID
+    created_by: uuid.UUID
+    incident_id: Optional[uuid.UUID] = None
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[Literal["Low", "Medium", "High", "Urgent"]] = None
+    status: Optional[Literal["To Do", "In Progress", "Review", "Done"]] = None
+    assigned_to: Optional[uuid.UUID] = None
+    created_by: Optional[uuid.UUID] = None
+    incident_id: Optional[uuid.UUID] = None
+    due_date: Optional[datetime] = None
+    reviewed_by: Optional[uuid.UUID] = None
+    reviewed_at: Optional[datetime] = None
+    is_deleted: Optional[bool] = None
+
+class TaskResponse(TaskBase):
+    task_id: uuid.UUID
+    assigned_to: uuid.UUID
+    created_by: uuid.UUID
+    incident_id: Optional[uuid.UUID] = None
+    reviewed_by: Optional[uuid.UUID] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Schemas for Approval module
+class ApprovalBase(BaseModel):
+    module_type: Literal["TASK", "TRAINING"]
+    reference_id: uuid.UUID
+    status: Literal["Pending", "Approved", "Rejected"] = "Pending"
+    comments: Optional[str] = None
+
+class ApprovalCreate(ApprovalBase):
+    requested_by: uuid.UUID
+    approved_by: Optional[uuid.UUID] = None
+
+class ApprovalUpdate(BaseModel):
+    status: Optional[Literal["Pending", "Approved", "Rejected"]] = None
+    comments: Optional[str] = None
+    approved_by: Optional[uuid.UUID] = None
+
+class ApprovalResponse(ApprovalBase):
+    approval_id: uuid.UUID
+    requested_by: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
