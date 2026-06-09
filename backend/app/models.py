@@ -42,7 +42,7 @@ class Incident(Base):
     incident_date = Column(Date, nullable=False)  # Actual date the incident occurred
     status = Column(String(50), nullable=False, default="Reported")  # 'Reported', 'Under Investigation', 'Resolved', 'Closed'
     reported_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
-    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -63,7 +63,7 @@ class Task(Base):
     status = Column(String(20), nullable=False, default="To Do")  # 'To Do', 'In Progress', 'Review', 'Done'
     assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
-    incident_id = Column(UUID(as_uuid=True), ForeignKey("incidents.incident_id", ondelete="SET NULL"), nullable=True)
+    incident_id = Column(UUID(as_uuid=True), ForeignKey("incidents.incident_id", ondelete="RESTRICT"), nullable=False)
     due_date = Column(Date, nullable=False)
     reviewed_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
@@ -120,7 +120,7 @@ class Training(Base):
     __tablename__ = "trainings"
 
     training_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    incident_id = Column(UUID(as_uuid=True), ForeignKey("incidents.incident_id", ondelete="SET NULL"), nullable=True)
+    incident_id = Column(UUID(as_uuid=True), ForeignKey("incidents.incident_id", ondelete="RESTRICT"), nullable=False)
     title = Column(String(255), nullable=False)
     training_type = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)

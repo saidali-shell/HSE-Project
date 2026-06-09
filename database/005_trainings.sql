@@ -1,19 +1,19 @@
 -- Create trainings table
 CREATE TABLE trainings (
     training_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    incident_id UUID REFERENCES incidents(incident_id) ON DELETE SET NULL,
+    incident_id UUID NOT NULL REFERENCES incidents(incident_id) ON DELETE RESTRICT,
     title VARCHAR(255) NOT NULL,
     training_type VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     instructor VARCHAR(255) NOT NULL,
     assigned_to UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
-    status VARCHAR(20) NOT NULL DEFAULT 'Incomplete' CHECK (status IN ('Completed', 'Incomplete')),
-
+    status VARCHAR(20) NOT NULL DEFAULT 'Incomplete',
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     created_by UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT trainings_status_check CHECK (status IN ('Completed', 'Incomplete'))
 );
 
 -- Index for searching trainings by status or assignee

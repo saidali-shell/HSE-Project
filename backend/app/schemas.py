@@ -129,7 +129,7 @@ class UserResponse(BaseModel):
 
 # Schemas for Training module
 class TrainingBase(BaseModel):
-    incident_id: Optional[uuid.UUID] = None
+    incident_id: uuid.UUID
     title: str = Field(..., max_length=255)
     training_type: str = Field(..., max_length=100)
     description: str
@@ -148,9 +148,8 @@ class TrainingUpdate(BaseModel):
     description: Optional[str] = None
     instructor: Optional[str] = None
     assigned_to: Optional[uuid.UUID] = None
+    incident_id: Optional[uuid.UUID] = None
     status: Optional[Literal["Completed", "Incomplete"]] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
 
 class TrainingResponse(TrainingBase):
     training_id: uuid.UUID
@@ -171,7 +170,7 @@ class IncidentBase(BaseModel):
     proof_image_path: Optional[str] = None
     incident_date: datetime
     status: Literal["Reported", "Under Investigation", "Resolved", "Closed"] = "Reported"
-    assigned_to: Optional[uuid.UUID] = None
+    assigned_to: uuid.UUID
 
 class IncidentCreate(IncidentBase):
     reported_by: uuid.UUID
@@ -190,6 +189,7 @@ class IncidentUpdate(BaseModel):
 class IncidentResponse(IncidentBase):
     incident_id: uuid.UUID
     reported_by: uuid.UUID
+    assigned_to: uuid.UUID
     created_at: datetime
     updated_at: datetime
 
@@ -208,7 +208,7 @@ class TaskBase(BaseModel):
 class TaskCreate(TaskBase):
     assigned_to: uuid.UUID
     created_by: uuid.UUID
-    incident_id: Optional[uuid.UUID] = None
+    incident_id: uuid.UUID
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -227,7 +227,7 @@ class TaskResponse(TaskBase):
     task_id: uuid.UUID
     assigned_to: uuid.UUID
     created_by: uuid.UUID
-    incident_id: Optional[uuid.UUID] = None
+    incident_id: uuid.UUID
     reviewed_by: Optional[uuid.UUID] = None
     reviewed_at: Optional[datetime] = None
     created_at: datetime

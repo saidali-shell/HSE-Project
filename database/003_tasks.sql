@@ -7,7 +7,7 @@ CREATE TABLE tasks (
     status VARCHAR(20) NOT NULL DEFAULT 'To Do' CHECK (status IN ('To Do', 'In Progress', 'Review', 'Done')),
     assigned_to UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
     created_by UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
-    incident_id UUID REFERENCES incidents(incident_id) ON DELETE SET NULL,
+    incident_id UUID NOT NULL REFERENCES incidents(incident_id) ON DELETE RESTRICT,
     due_date DATE NOT NULL,
     reviewed_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE NULL,

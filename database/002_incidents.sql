@@ -10,7 +10,7 @@ CREATE TABLE incidents (
     incident_date DATE NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'Reported' CHECK (status IN ('Reported', 'Under Investigation', 'Resolved', 'Closed')),
     reported_by UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
-    assigned_to UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    assigned_to UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
