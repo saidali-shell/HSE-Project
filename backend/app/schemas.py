@@ -47,7 +47,16 @@ class UserBase(BaseModel):
 
 # Schema for creating a user
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6, description="Password must be at least 6 characters long")
+    password: str = Field(..., min_length=6, max_length=72, description="Password must be at least 6 characters long and at most 72 characters")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: str) -> str:
+        # bcrypt has a 72-byte input limit; ensure the UTF-8 encoded password fits
+        b = value.encode("utf-8")
+        if len(b) > 72:
+            raise ValueError("Password must be at most 72 bytes when UTF-8 encoded; choose a shorter password")
+        return value
 
 # Schema for updating user details
 class UserUpdate(BaseModel):
@@ -170,7 +179,7 @@ class IncidentBase(BaseModel):
     proof_image_path: Optional[str] = None
     incident_date: datetime
     status: Literal["Reported", "Under Investigation", "Resolved", "Closed"] = "Reported"
-    assigned_to: uuid.UUID
+    # assigned_to removed: tasks hold assignment for investigations
 
 class IncidentCreate(IncidentBase):
     reported_by: uuid.UUID
@@ -184,12 +193,11 @@ class IncidentUpdate(BaseModel):
     proof_image_path: Optional[str] = None
     incident_date: Optional[datetime] = None
     status: Optional[Literal["Reported", "Under Investigation", "Resolved", "Closed"]] = None
-    assigned_to: Optional[uuid.UUID] = None
+    # assigned_to removed: use Task objects for assignments
 
 class IncidentResponse(IncidentBase):
     incident_id: uuid.UUID
     reported_by: uuid.UUID
-    assigned_to: uuid.UUID
     created_at: datetime
     updated_at: datetime
 

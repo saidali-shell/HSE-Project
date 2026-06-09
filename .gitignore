@@ -23,3 +23,8 @@ venv.bak/
 
 # Temporary files
 backend/app/main.py
+MODULE1_API_DOCUMENTATION.md
+VERIFICATION_REPORT.md
+migration.py
+backend/app/auth.py
+backend/app/routers/

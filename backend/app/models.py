@@ -19,7 +19,6 @@ class User(Base):
 
     # Relationships
     incidents_reported = relationship("Incident", back_populates="reporter", foreign_keys="[Incident.reported_by]")
-    incidents_assigned = relationship("Incident", back_populates="assignee", foreign_keys="[Incident.assigned_to]")
     tasks_assigned = relationship("Task", back_populates="assignee", foreign_keys="[Task.assigned_to]")
     tasks_created = relationship("Task", back_populates="creator", foreign_keys="[Task.created_by]")
     tasks_reviewed = relationship("Task", back_populates="reviewer", foreign_keys="[Task.reviewed_by]")
@@ -42,13 +41,11 @@ class Incident(Base):
     incident_date = Column(Date, nullable=False)  # Actual date the incident occurred
     status = Column(String(50), nullable=False, default="Reported")  # 'Reported', 'Under Investigation', 'Resolved', 'Closed'
     reported_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
-    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     reporter = relationship("User", back_populates="incidents_reported", foreign_keys=[reported_by])
-    assignee = relationship("User", back_populates="incidents_assigned", foreign_keys=[assigned_to])
     tasks = relationship("Task", back_populates="incident")
     trainings = relationship("Training", back_populates="incident")
 
