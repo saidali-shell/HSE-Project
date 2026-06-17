@@ -1,14 +1,17 @@
 import math
 import uuid
+from datetime import date, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from backend.app.database import get_db
 from backend.app.auth import require_role
 from backend.app.models.incident import Incident
 from backend.app.models.user import User
+from backend.app.models.task import Task
 from backend.app.schemas.incident import (
     IncidentCreate, 
     IncidentUpdate, 
@@ -32,9 +35,31 @@ def create_incident(
     """
     db_incident = Incident(**incident.model_dump())
     db.add(db_incident)
-    db.commit()
-    db.refresh(db_incident)
-    return db_incident
+    try:
+        db.flush() # Flush to get the generated incident_id
+        
+        # Auto-create an investigation task
+        investigation_task = Task(
+            title=f"Investigation: {db_incident.title}",
+            description=f"Automatically generated investigation task for Incident: {db_incident.title}",
+            priority=db_incident.severity,
+            status="To Do",
+            assigned_to=db_incident.reported_by,
+            created_by=db_incident.reported_by,
+            incident_id=db_incident.incident_id,
+            due_date=date.today() + timedelta(days=7)
+        )
+        db.add(investigation_task)
+        
+        db.commit()
+        db.refresh(db_incident)
+        return db_incident
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid reported_by user ID. The specified user does not exist."
+        )
 
 @router.get("/summary", response_model=IncidentSummaryResponse)
 def get_incident_summary(db: Session = Depends(get_db)):
@@ -76,7 +101,7 @@ def get_incidents(
     )
 
 @router.get("/{incident_id}", response_model=IncidentResponse)
-def get_incident(incident_id: str, db: Session = Depends(get_db)):
+def get_incident(incident_id: uuid.UUID, db: Session = Depends(get_db)):
     db_incident = db.query(Incident).filter(Incident.incident_id == incident_id).first()
     if not db_incident:
         raise HTTPException(status_code=404, detail="Incident not found")
@@ -84,7 +109,7 @@ def get_incident(incident_id: str, db: Session = Depends(get_db)):
 
 @router.put("/{incident_id}", response_model=IncidentResponse)
 def update_incident(
-    incident_id: str, 
+    incident_id: uuid.UUID, 
     incident_update: IncidentUpdate, 
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("HSE Manager", "Admin"))
@@ -103,7 +128,7 @@ def update_incident(
 
 @router.delete("/{incident_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_incident(
-    incident_id: str, 
+    incident_id: uuid.UUID, 
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("Admin"))
 ):
