@@ -9,7 +9,7 @@ from backend.app import models  # noqa: F401  (ensures models are imported for S
 from backend.app.database import engine  # noqa: F401  (creates DB engine)
 
 # Import routers
-from backend.app.routers import auth, users
+from backend.app.routers import auth, users, incidents
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -66,3 +66,4 @@ async def read_root():
 # Include routers
 app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1", tags=["User Management"])
+app.include_router(incidents.router, prefix="/api/v1/incidents", tags=["Incidents"])
