@@ -15,8 +15,7 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Password hashing context
-# Use pbkdf2_sha256 to avoid bcrypt C-extension issues in dev environments.
+# Password hashing context - use pbkdf2_sha256 (works reliably)
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # HTTP Bearer token security scheme

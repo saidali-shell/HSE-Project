@@ -6,8 +6,13 @@ from sqlalchemy.orm import relationship, foreign
 from backend.app.database import Base
 from backend.app.models.task import Task
 from backend.app.models.training import Training
+<<<<<<< HEAD
  
  
+=======
+
+
+>>>>>>> main
 class Approval(Base):
     __tablename__ = "approvals"
  
