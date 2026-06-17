@@ -1,3 +1,3 @@
 from backend.app.routers import auth, users
 
-__all__ = ["auth", "users"]
+__all__ = ["auth", "users","trainings"]
