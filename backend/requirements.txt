@@ -8,3 +8,5 @@ passlib[bcrypt]
 python-dotenv
 pydantic
 python-multipart
+slowapi
+pydantic-settings
