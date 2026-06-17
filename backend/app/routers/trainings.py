@@ -7,13 +7,12 @@ from fastapi import Depends, APIRouter, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.database import Base, SessionLocal, engine
-from backend.app.models import Approval, Incident, Training, User
+from backend.app.models import Incident, Training, User
 from backend.app.schemas import (
     TrainingCreate,
     TrainingResponse,
     TrainingUpdate,
-    ApprovalCreate,
-    ApprovalResponse,
+
 )
 
 
@@ -58,28 +57,46 @@ def read_root():
 # ============================================================================
 
 @router.get("/trainings", response_model=List[EmployeeTrainingStatusResponse])
-def list_trainings(db: Session = Depends(get_db)):
-    """Training list: returns training status, duration, and incident details."""
-    trainings = db.query(Training).all()
+def list_trainings(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=10),
+    db: Session = Depends(get_db)
+):
+    offset = (page - 1) * size
+
+    trainings = (
+        db.query(Training)
+        .offset(offset)
+        .limit(size)
+        .all()
+    )
+
     return [_employee_training_status(training) for training in trainings]
-
-
 @router.get("/manager/trainings", response_model=List[TrainingResponse])
 def manager_list_trainings(
-    title: Optional[str] = Query(
-        None,
-        title="training title",
-        description="Search trainings by title (used by managers)",
-    ),
+    title: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    """Manager-only training list: search by title."""
     query = db.query(Training)
 
     if title:
-        query = query.filter(Training.title.ilike(f"%{title}%"))
+        query = query.filter(
+            Training.title.ilike(f"%{title}%")
+        )
 
-    return query.all()
+    offset = (page - 1) * size
+
+    trainings = (
+        query
+        .offset(offset)
+        .limit(size)
+        .all()
+    )
+
+    return trainings
+
 
 
 @router.get("/trainings/{training_id}", response_model=Union[TrainingResponse, EmployeeTrainingStatusResponse])
@@ -101,6 +118,7 @@ def create_training(training: TrainingCreate, db: Session = Depends(get_db)):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Incident with ID {training.incident_id} does not exist",
             )
+        
 
     assigned_user = db.query(User).filter(User.user_id == training.assigned_to).first()
     if not assigned_user:
@@ -116,7 +134,7 @@ def create_training(training: TrainingCreate, db: Session = Depends(get_db)):
         status=training.status,
         start_date=training.start_date,
         end_date=training.end_date,
-        created_by=training.assigned_to,
+        created_by=training.created_by,
     )
     db.add(new_training)
     db.commit()
@@ -147,61 +165,6 @@ def update_training(
     db.commit()
     db.refresh(training)
     return training
-
-
-@router.post("/trainings/{training_id}/approvals", response_model=ApprovalResponse, status_code=status.HTTP_201_CREATED)
-def request_training_approval(training_id: uuid.UUID, approval: ApprovalCreate, db: Session = Depends(get_db)):
-    """Create a manager approval request for a completed training."""
-    training = db.query(Training).filter(Training.training_id == training_id).first()
-    if not training:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Training not found")
-    if training.status != "Completed":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Approval can only be requested after training has been completed",
-        )
-    if approval.module_type != "TRAINING":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="module_type must be TRAINING for training approvals",
-        )
-    if approval.reference_id != training_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="reference_id must match the training_id in the URL",
-        )
-
-    requested_by = db.query(User).filter(User.user_id == approval.requested_by).first()
-    if not requested_by:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requested user not found")
-
-    if approval.approved_by is not None:
-        approved_by = db.query(User).filter(User.user_id == approval.approved_by).first()
-        if not approved_by:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approver user not found")
-
-    new_approval = Approval(
-        module_type=approval.module_type,
-        reference_id=approval.reference_id,
-        requested_by=approval.requested_by,
-        approved_by=approval.approved_by,
-        status=approval.status,
-        comments=approval.comments,
-    )
-    db.add(new_approval)
-    db.commit()
-    db.refresh(new_approval)
-    return new_approval
-
-
-
-@router.get("/approvals/{approval_id}", response_model=ApprovalResponse)
-def get_approval(approval_id: uuid.UUID, db: Session = Depends(get_db)):
-    """Get a specific approval request."""
-    approval = db.query(Approval).filter(Approval.approval_id == approval_id).first()
-    if not approval:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
-    return approval
 
 
 @router.delete("/trainings/{training_id}", status_code=status.HTTP_204_NO_CONTENT)
