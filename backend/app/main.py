@@ -60,7 +60,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         # Strip Pydantic "Value error, " prefix
         if message.startswith("Value error, "):
             message = message[len("Value error, "):]
-        
         errors.append({"field": field, "message": message})
     
     return JSONResponse(
