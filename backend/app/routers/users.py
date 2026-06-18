@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import List
@@ -8,18 +8,18 @@ from backend.app.database import get_db
 from backend.app import models, schemas
 from backend.app.auth import (
     hash_password,
-    verify_password,
-    create_access_token,
-    decode_access_token,
     get_current_user,
     require_role,
 )
+from backend.app.core.rate_limit import limiter
 
 router = APIRouter()
 
 
 @router.post("/users", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=["User Management"])
+@limiter.limit("10/minute")
 async def create_user(
+    request: Request,
     user_create: schemas.UserCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role("Admin")),
@@ -96,7 +96,7 @@ async def get_all_users(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_role("Admin", "HSE Manager")),
+    current_user: models.User = Depends(require_role("Admin","HSE Manager")),
 ):
     """
     Retrieve all users with optional search and pagination.
@@ -166,7 +166,9 @@ async def get_user_by_id(
 
 
 @router.put("/users/{user_id}", response_model=schemas.UserResponse, tags=["User Management"])
+@limiter.limit("5/minute")
 async def update_user(
+    request: Request,
     user_id: str,
     user_update: schemas.UserUpdate,
     db: Session = Depends(get_db),
@@ -283,7 +285,9 @@ async def update_user_status(
 
 
 @router.patch("/users/{user_id}/reset-password", status_code=status.HTTP_200_OK, tags=["User Management"])
+@limiter.limit("10/minute")
 async def reset_password(
+    request: Request,
     user_id: str,
     password_reset: schemas.PasswordReset,
     db: Session = Depends(get_db),
