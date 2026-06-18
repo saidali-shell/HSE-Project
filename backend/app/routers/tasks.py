@@ -97,6 +97,12 @@ def get_task(
             detail="Task not found"
         )
 
+    if current_user.role not in ["HSE Manager", "Admin"] and task.assigned_to != str(current_user.user_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to view this task."
+        )
+
     return task
 
 ALLOWED_PRIORITIES = ["Low", "Medium", "High", "Urgent"]
@@ -132,6 +138,33 @@ def create_task(
         raise HTTPException(
             status_code=400,
             detail="Due date cannot be earlier than today's date."
+        )
+
+    incident = db.query(Incident).filter(
+        Incident.incident_id == task.incident_id
+    ).first()
+
+    if not incident:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid incident ID. Incident not found."
+        )
+
+    assignee = db.query(User).filter(
+        User.user_id == task.assigned_to,
+        User.status == "Active"
+    ).first()
+
+    if not assignee:
+        raise HTTPException(
+            status_code=400,
+            detail="Assigned employee not found or inactive."
+        )
+
+    if assignee.role != "Employee":
+        raise HTTPException(
+            status_code=400,
+            detail="Task must be assigned to a user with the Employee role."
         )
 
 
@@ -298,6 +331,23 @@ def update_status(
         "status": task.status,
         "message": "Task status updated successfully"
     }
+
+
+# OVERDUE TASKS (MANAGER VIEW)
+@router.get("/overdue")
+def get_overdue_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+):
+
+    today = date.today()
+    tasks = db.query(Task).filter(
+        Task.due_date < today,
+        Task.status != "Done",
+        Task.is_deleted == False
+    ).all()
+
+    return tasks
 
 
 # SOFT DELETE TASK
