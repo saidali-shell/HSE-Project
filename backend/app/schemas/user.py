@@ -46,10 +46,16 @@ class UserCreate(UserBase):
 
     @field_validator("password")
     @classmethod
-    def validate_password_bytes(cls, value: str) -> str:
+    def validate_password_complexity(cls, value: str) -> str:
         b = value.encode("utf-8")
         if len(b) > 72:
             raise ValueError("Password must be at most 72 bytes when UTF-8 encoded; choose a shorter password")
+        if not any(c.isupper() for c in value):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in value):
+            raise ValueError("Password must contain at least one digit")
+        if not any(c in "!@#$%^&*()_+-=[]{}|;:',.<>?/`~" for c in value):
+            raise ValueError("Password must contain at least one special character")
         return value
 
 
@@ -100,6 +106,17 @@ class UserStatusUpdate(BaseModel):
 
 class PasswordReset(BaseModel):
     new_password: str = Field(..., min_length=6, description="New password must be at least 6 characters long")
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_complexity(cls, value: str) -> str:
+        if not any(c.isupper() for c in value):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in value):
+            raise ValueError("Password must contain at least one digit")
+        if not any(c in "!@#$%^&*()_+-=[]{}|;:',.<>?/`~" for c in value):
+            raise ValueError("Password must contain at least one special character")
+        return value
 
 
 class UserResponse(BaseModel):
