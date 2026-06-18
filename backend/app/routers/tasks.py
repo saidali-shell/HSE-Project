@@ -19,7 +19,6 @@ class TaskCreate(BaseModel):
     priority: str
     status: str = "To Do"
     assigned_to: str
-    created_by: str
     incident_id: str
     due_date: date
 
@@ -59,15 +58,14 @@ def get_tasks(
 
 # GET MY TASKS (EMPLOYEE VIEW)
 
-@router.get("/my/{user_id}")
+@router.get("/my")
 def get_my_tasks(
-    user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
 
     tasks = db.query(Task).filter(
-        Task.assigned_to == user_id,
+        Task.assigned_to == str(current_user.user_id),
         Task.is_deleted == False
     ).all()
 
@@ -107,7 +105,7 @@ ALLOWED_STATUSES = [
     "To Do",
     "In Progress",
     "Review",
-    "Completed"
+    "Done"
 ]
 # CREATE TASK
 
@@ -127,7 +125,7 @@ def create_task(
     if task.status not in ALLOWED_STATUSES:
         raise HTTPException(
             status_code=400,
-            detail="Invalid status. Allowed values are To Do, In Progress, Review and Completed."
+            detail="Invalid status. Allowed values are To Do, In Progress, Review and Done."
         )
 
     if task.due_date < date.today():
@@ -144,7 +142,7 @@ def create_task(
         priority=task.priority,
         status=task.status,
         assigned_to=task.assigned_to,
-        created_by=task.created_by,
+        created_by=str(current_user.user_id),
         incident_id=task.incident_id,
         due_date=task.due_date,
         is_deleted=False
@@ -238,12 +236,23 @@ def update_status(
             detail="Task not found"
         )
 
+    # Check authorization: user can only update status for their own tasks
+    # Managers/Admins can update any task status
+    is_manager_or_admin = current_user.role in ["HSE Manager", "Admin"]
+    is_task_assigned_to_user = task.assigned_to == str(current_user.user_id)
+
+    if not (is_manager_or_admin or is_task_assigned_to_user):
+        raise HTTPException(
+            status_code=403,
+            detail="You can only update status for tasks assigned to you"
+        )
+
     # Employee workflow only
     valid_transitions = {
         "To Do": ["In Progress"],
         "In Progress": ["Review"],
         "Review": [],          # Employee cannot move further
-        "Completed": []
+        "Done": []
     }
 
     if payload.status not in valid_transitions[task.status]:
@@ -336,7 +345,7 @@ def task_board(
         "todo": [],
         "in_progress": [],
         "review": [],
-        "completed": []
+        "done": []
     }
 
     for task in tasks:
@@ -355,8 +364,8 @@ def task_board(
         elif task.status == "Review":
             board["review"].append(item)
 
-        elif task.status == "Completed":
-            board["completed"].append(item)
+        elif task.status == "Done":
+            board["done"].append(item)
 
     return board
 
