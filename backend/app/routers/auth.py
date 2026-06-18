@@ -9,11 +9,13 @@ from backend.app.auth import (
     create_access_token,
     decode_access_token,
 )
+from backend.app.core.rate_limit import limiter
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=schemas.TokenResponse, tags=["Authentication"])
+@limiter.limit("5/minute")
 async def login(request: Request, login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
     """
     User login endpoint.

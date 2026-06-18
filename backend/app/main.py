@@ -1,18 +1,17 @@
 # backend/app/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from backend.app import models  # noqa: F401  (ensures models are imported for SQLAlchemy metadata)
 from backend.app.database import engine  # noqa: F401  (creates DB engine)
+from backend.app.core.rate_limit import limiter
 
 # Import routers
 from backend.app.routers import auth, users, incidents
-
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="HSE Management API",
@@ -37,6 +36,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Custom validation error handler - returns user-friendly messages
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for error in exc.errors():
+        field = ".".join(str(loc) for loc in error["loc"] if loc != "body")
+        message = error["msg"]
+        
+        # Make messages more user-friendly
+        if "field required" in message.lower():
+            message = f"{field} is required"
+        elif "value is not a valid email" in message.lower():
+            message = "Invalid email format"
+        elif "ensure this value has at least" in message.lower():
+            message = f"{field} is too short"
+        elif "ensure this value has at most" in message.lower():
+            message = f"{field} is too long"
+        elif "value is not a valid enumeration member" in message.lower():
+            message = f"Invalid {field} value"
+        
+        errors.append({"field": field, "message": message})
+    
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Validation failed", "errors": errors}
+    )
 
 # Startup DB check (dev-friendly)
 @app.on_event("startup")
