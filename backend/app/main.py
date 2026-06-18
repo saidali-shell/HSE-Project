@@ -57,6 +57,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         elif "value is not a valid enumeration member" in message.lower():
             message = f"Invalid {field} value"
         
+        # Strip Pydantic "Value error, " prefix
+        if message.startswith("Value error, "):
+            message = message[len("Value error, "):]
         errors.append({"field": field, "message": message})
     
     return JSONResponse(
