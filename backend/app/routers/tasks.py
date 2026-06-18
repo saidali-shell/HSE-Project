@@ -1,14 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional
 import uuid
 
-from .database import get_db
-from .models import Task
+from backend.app.database import get_db
+from backend.app.models import Task, Incident , Approval
 
-app = FastAPI()
+router = APIRouter()
 
 # PYDANTIC SCHEMAS
 
@@ -37,7 +37,7 @@ class StatusUpdate(BaseModel):
 
 # HOME
 
-@app.get("/")
+@router.get("/")
 def home():
     return {
         "message": "HSE Dashboard API is running"
@@ -46,7 +46,7 @@ def home():
 
 # GET ALL TASKS (MANAGER VIEW)
 
-@app.get("/tasks")
+@router.get("/tasks")
 def get_tasks(db: Session = Depends(get_db)):
 
     tasks = db.query(Task).filter(
@@ -64,7 +64,7 @@ def get_tasks(db: Session = Depends(get_db)):
 
 # GET MY TASKS (EMPLOYEE VIEW)
 
-@app.get("/tasks/my/{user_id}")
+@router.get("/tasks/my/{user_id}")
 def get_my_tasks(user_id: str, db: Session = Depends(get_db)):
 
     tasks = db.query(Task).filter(
@@ -82,7 +82,7 @@ def get_my_tasks(user_id: str, db: Session = Depends(get_db)):
 
 # GET TASK BY ID
 
-@app.get("/tasks/{task_id}")
+@router.get("/tasks/{task_id}")
 def get_task(task_id: str, db: Session = Depends(get_db)):
 
     task = db.query(Task).filter(
@@ -113,7 +113,7 @@ ALLOWED_STATUSES = [
 ]
 # CREATE TASK
 
-@app.post("/tasks")
+@router.post("/tasks")
 def create_task(
     task: TaskCreate,
     db: Session = Depends(get_db)
@@ -163,7 +163,7 @@ def create_task(
 
 # UPDATE TASK DETAILS (MANAGER ONLY)
 
-@app.patch("/tasks/{task_id}")
+@router.patch("/tasks/{task_id}")
 def update_task(
     task_id: str,
     payload: TaskUpdate,
@@ -219,9 +219,79 @@ def update_task(
     }
 
 
-# UPDATE TASK STATUS
+# UPDATE TASK STATUS(user can update their own task status)
 
-@app.patch("/tasks/{task_id}")
+@router.patch("/tasks/{task_id}/status")
+def update_status(
+    task_id: str,
+    payload: StatusUpdate,
+    db: Session = Depends(get_db)
+):
+
+    task = db.query(Task).filter(
+        Task.task_id == task_id,
+        Task.is_deleted == False
+    ).first()
+
+    if not task:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found"
+        )
+
+    # Employee workflow only
+    valid_transitions = {
+        "To Do": ["In Progress"],
+        "In Progress": ["Review"],
+        "Review": [],          # Employee cannot move further
+        "Completed": []
+    }
+
+    if payload.status not in valid_transitions[task.status]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task can only move from '{task.status}' to {valid_transitions[task.status]}"
+        )
+
+    task.status = payload.status
+
+    # Get linked incident
+    incident = db.query(Incident).filter(
+        Incident.incident_id == task.incident_id
+    ).first()
+
+    # To Do -> In Progress
+    if payload.status == "In Progress":
+
+        if incident:
+            incident.status = "Under Investigation"
+
+    # In Progress -> Review
+    elif payload.status == "Review":
+
+        if incident:
+            incident.status = "Resolved"
+
+        # Create approval request automatically
+        approval = Approval(
+            approval_id=str(uuid.uuid4()),
+            module_type="TASK",
+            reference_id=task.task_id,
+            requested_by=task.assigned_to,
+            status="Pending"
+        )
+
+        db.add(approval)
+
+    db.commit()
+
+    return {
+        "id": str(task.task_id),
+        "status": task.status,
+        "message": "Task status updated successfully"
+    }
+
+'''@router.patch("/tasks/{task_id}")
 def update_task(
     task_id: str,
     payload: TaskUpdate,
@@ -273,11 +343,11 @@ def update_task(
     return {
         "id": str(task.task_id),
         "message": "Task updated successfully"
-    }
+    }'''
 
 # SOFT DELETE TASK
 
-@app.delete("/tasks/{task_id}")
+@router.delete("/tasks/{task_id}")
 def delete_task(
     task_id: str,
     db: Session = Depends(get_db)
@@ -305,7 +375,7 @@ def delete_task(
 
 # TASK BOARD (MANAGER DASHBOARD VIEW)
 
-@app.get("/tasks/board")
+@router.get("/tasks/board")
 def task_board(db: Session = Depends(get_db)):
 
     tasks = db.query(Task).filter(
@@ -341,7 +411,7 @@ def task_board(db: Session = Depends(get_db)):
     return board
 
 # GET TASKS BY INCIDENT ID
-@app.get("/incidents/{incident_id}/tasks")
+@router.get("/incidents/{incident_id}/tasks")
 def get_tasks_by_incident(
     incident_id: str,
     db: Session = Depends(get_db)

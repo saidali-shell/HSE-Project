@@ -66,4 +66,4 @@ async def read_root():
 # Include routers
 app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1", tags=["User Management"])
-app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])
+app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["Tasks"])
