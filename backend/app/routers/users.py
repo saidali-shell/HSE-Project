@@ -70,7 +70,6 @@ async def create_user(
     try:
         hashed_password = hash_password(user_create.password)
     except ValueError as ve:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=str(ve))
     
     # Create new user

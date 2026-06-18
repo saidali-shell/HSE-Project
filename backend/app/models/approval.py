@@ -4,6 +4,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, foreign
 
 from backend.app.database import Base
+from backend.app.models.task import Task
+from backend.app.models.training import Training
 
 
 class Approval(Base):
