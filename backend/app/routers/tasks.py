@@ -81,6 +81,93 @@ def get_my_tasks(
     return tasks
 
 
+# GET OVERDUE TASKS (based on due_date and completion status)
+
+@router.get("/overdue")
+def get_overdue_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    page: int = 1,
+    size: int = 100,
+):
+    """
+    Identify overdue tasks based on due date and completion status.
+    Returns tasks where:
+    - due_date < today (past due)
+    - status != "Done" (not completed)
+    """
+    today = date.today()
+    tasks = db.query(Task).filter(
+        Task.due_date < today,
+        Task.status != "Done",
+        Task.is_deleted == False
+    ).offset((page - 1) * size).limit(size).all()
+
+    return tasks
+
+
+# TASK BOARD (MANAGER DASHBOARD VIEW)
+
+@router.get("/board")
+def task_board(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    page: int = 1,
+    size: int = 100,
+):
+
+    tasks = db.query(Task).filter(
+        Task.is_deleted == False
+    ).offset((page - 1) * size).limit(size).all()
+
+    board = {
+        "todo": [],
+        "in_progress": [],
+        "review": [],
+        "done": []
+    }
+
+    for task in tasks:
+
+        item = {
+            "id": str(task.task_id),
+            "title": task.title
+        }
+
+        if task.status == "To Do":
+            board["todo"].append(item)
+
+        elif task.status == "In Progress":
+            board["in_progress"].append(item)
+
+        elif task.status == "Review":
+            board["review"].append(item)
+
+        elif task.status == "Done":
+            board["done"].append(item)
+
+    return board
+
+
+# GET TASKS BY INCIDENT ID
+
+@router.get("/incidents/{incident_id}/tasks")
+def get_tasks_by_incident(
+    incident_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    page: int = 1,
+    size: int = 100,
+):
+
+    tasks = db.query(Task).filter(
+        Task.incident_id == incident_id,
+        Task.is_deleted == False
+    ).offset((page - 1) * size).limit(size).all()
+
+    return tasks
+
+
 # GET TASK BY ID
 
 @router.get("/{task_id}")
