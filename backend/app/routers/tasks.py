@@ -188,7 +188,7 @@ def get_task(
             detail="Task not found"
         )
 
-    if current_user.role not in ["HSE Manager", "Admin"] and task.assigned_to != str(current_user.user_id):
+    if current_user.role not in ["HSE Manager", "Admin"] and task.assigned_to != current_user.user_id:
         raise HTTPException(
             status_code=403,
             detail="You are not authorized to view this task."
@@ -360,16 +360,16 @@ def update_status(
             detail="Task not found"
         )
 
-    '''# Check authorization: user can only update status for their own tasks
+    # Check authorization: user can only update status for their own tasks
     # Managers/Admins can update any task status
     is_manager_or_admin = current_user.role in ["HSE Manager", "Admin"]
-    is_task_assigned_to_user = task.assigned_to == str(current_user.user_id)
+    is_task_assigned_to_user = task.assigned_to == current_user.user_id
 
     if not (is_manager_or_admin or is_task_assigned_to_user):
         raise HTTPException(
             status_code=403,
             detail="You can only update status for tasks assigned to you"
-        )'''
+        )
 
     # Employee workflow only
     valid_transitions = {
