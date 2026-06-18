@@ -50,16 +50,6 @@ def create_incident(
         db.commit()
         db.refresh(db_incident)
         
-        # Create audit trail (TC-18)
-        history_record = IncidentHistory(
-            incident_id=db_incident.incident_id,
-            changed_by=current_user.user_id,
-            action="Incident Created",
-            details="Incident reported successfully"
-        )
-        db.add(history_record)
-        db.commit()
-        
         return db_incident
     except IntegrityError:
         db.rollback()
@@ -91,8 +81,8 @@ def get_incident_summary(
 
 @router.get("/", response_model=PaginatedIncidentResponse)
 def get_incidents(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("HSE Manager"))
@@ -102,13 +92,14 @@ def get_incidents(
         query = query.filter(Incident.status == status_filter)
         
     total_count = query.count()
-    incidents = query.offset(skip).limit(limit).all()
+    skip = (page - 1) * size
+    incidents = query.offset(skip).limit(size).all()
     
     return PaginatedIncidentResponse(
         items=incidents,
         total_count=total_count,
-        page=(skip // limit) + 1,
-        size=limit
+        page=page,
+        size=size
     )
 
 @router.get("/{incident_id}", response_model=IncidentResponse)
@@ -151,6 +142,13 @@ def delete_incident(
     if not db_incident:
         raise HTTPException(status_code=404, detail="Incident not found")
         
-    db.delete(db_incident)
-    db.commit()
+    try:
+        db.delete(db_incident)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, 
+            detail="Cannot delete incident because it has associated tasks or trainings."
+        )
     return None
