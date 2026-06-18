@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional
 import uuid
 
+from backend.app.auth import get_current_user, require_role
 from backend.app.database import get_db
-from backend.app.models import Task, Incident , Approval
+from backend.app.models import Task, Incident, Approval, User
 
 router = APIRouter()
 
@@ -35,19 +36,13 @@ class StatusUpdate(BaseModel):
     status: str
 
 
-# HOME
-
-@router.get("/")
-def home():
-    return {
-        "message": "HSE Dashboard API is running"
-    }
-
-
 # GET ALL TASKS (MANAGER VIEW)
 
-@router.get("/tasks")
-def get_tasks(db: Session = Depends(get_db)):
+@router.get("/")
+def get_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+):
 
     tasks = db.query(Task).filter(
         Task.is_deleted == False
@@ -64,8 +59,12 @@ def get_tasks(db: Session = Depends(get_db)):
 
 # GET MY TASKS (EMPLOYEE VIEW)
 
-@router.get("/tasks/my/{user_id}")
-def get_my_tasks(user_id: str, db: Session = Depends(get_db)):
+@router.get("/my/{user_id}")
+def get_my_tasks(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
 
     tasks = db.query(Task).filter(
         Task.assigned_to == user_id,
@@ -82,8 +81,12 @@ def get_my_tasks(user_id: str, db: Session = Depends(get_db)):
 
 # GET TASK BY ID
 
-@router.get("/tasks/{task_id}")
-def get_task(task_id: str, db: Session = Depends(get_db)):
+@router.get("/{task_id}")
+def get_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
 
     task = db.query(Task).filter(
         Task.task_id == task_id,
@@ -96,12 +99,7 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
             detail="Task not found"
         )
 
-    if not tasks:
-        return {
-            "message": "No tasks found for this incident."
-        }
-
-    return tasks
+    return task
 
 ALLOWED_PRIORITIES = ["Low", "Medium", "High", "Urgent"]
 
@@ -113,10 +111,11 @@ ALLOWED_STATUSES = [
 ]
 # CREATE TASK
 
-@router.post("/tasks")
+@router.post("/")
 def create_task(
     task: TaskCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
 ):
 
     if task.priority not in ALLOWED_PRIORITIES:
@@ -163,11 +162,12 @@ def create_task(
 
 # UPDATE TASK DETAILS (MANAGER ONLY)
 
-@router.patch("/tasks/{task_id}")
+@router.patch("/{task_id}")
 def update_task(
     task_id: str,
     payload: TaskUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
 ):
     if payload.priority is not None:
 
@@ -183,8 +183,6 @@ def update_task(
                     detail="Due date cannot be earlier than today's date."
                 )
 
-    task.due_date = payload.due_date
-    task.priority = payload.priority
     task = db.query(Task).filter(
         Task.task_id == task_id,
         Task.is_deleted == False
@@ -219,13 +217,14 @@ def update_task(
     }
 
 
-# UPDATE TASK STATUS(user can update their own task status)
+# UPDATE TASK STATUS (assigned user or manager)
 
-@router.patch("/tasks/{task_id}/status")
+@router.patch("/{task_id}/status")
 def update_status(
     task_id: str,
     payload: StatusUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
 
     task = db.query(Task).filter(
@@ -291,66 +290,14 @@ def update_status(
         "message": "Task status updated successfully"
     }
 
-'''@router.patch("/tasks/{task_id}")
-def update_task(
-    task_id: str,
-    payload: TaskUpdate,
-    db: Session = Depends(get_db)
-):
-
-    task = db.query(Task).filter(
-        Task.task_id == task_id,
-        Task.is_deleted == False
-    ).first()
-
-    if not task:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No task found with ID {task_id}"
-        )
-
-    if payload.priority is not None:
-        if payload.priority not in ALLOWED_PRIORITIES:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid priority. Allowed values are Low, Medium, High and Urgent."
-            )
-
-    if payload.due_date is not None:
-        if payload.due_date < date.today():
-            raise HTTPException(
-                status_code=400,
-                detail="Due date cannot be earlier than today's date."
-            )
-
-    if payload.title is not None:
-        task.title = payload.title
-
-    if payload.description is not None:
-        task.description = payload.description
-
-    if payload.priority is not None:
-        task.priority = payload.priority
-
-    if payload.assigned_to is not None:
-        task.assigned_to = payload.assigned_to
-
-    if payload.due_date is not None:
-        task.due_date = payload.due_date
-
-    db.commit()
-
-    return {
-        "id": str(task.task_id),
-        "message": "Task updated successfully"
-    }'''
 
 # SOFT DELETE TASK
 
-@router.delete("/tasks/{task_id}")
+@router.delete("/{task_id}")
 def delete_task(
     task_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
 ):
 
     task = db.query(Task).filter(
@@ -375,8 +322,11 @@ def delete_task(
 
 # TASK BOARD (MANAGER DASHBOARD VIEW)
 
-@router.get("/tasks/board")
-def task_board(db: Session = Depends(get_db)):
+@router.get("/board")
+def task_board(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+):
 
     tasks = db.query(Task).filter(
         Task.is_deleted == False
@@ -414,7 +364,8 @@ def task_board(db: Session = Depends(get_db)):
 @router.get("/incidents/{incident_id}/tasks")
 def get_tasks_by_incident(
     incident_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
 ):
 
     tasks = db.query(Task).filter(
