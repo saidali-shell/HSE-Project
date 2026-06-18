@@ -195,7 +195,9 @@ def update_training(
     if "assigned_to" in update_data:
         assigned_user = db.query(User).filter(User.user_id == update_data["assigned_to"]).first()
         if not assigned_user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assigned user not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Assigned user with ID {update_data['assigned_to']} not found")
+        if assigned_user.role != "Employee":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Training can only be assigned to a user with role Employee")
 
     # remember old status to detect manager action on a review
     old_status = training.status
@@ -248,6 +250,9 @@ def get_trainings_by_user(
     """Allow an employee to view trainings assigned to a specific user ID."""
     if current_user.role == "Employee" and current_user.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view this user's trainings")
+
+    if not db.query(User).filter(User.user_id == user_id).first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No user found with ID {user_id}")
 
     trainings = db.query(Training).filter(Training.assigned_to == user_id).all()
     if current_user.role == "Employee" and not trainings:
