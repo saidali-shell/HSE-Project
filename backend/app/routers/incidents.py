@@ -127,7 +127,7 @@ def update_incident(
     incident_id: uuid.UUID, 
     incident_update: IncidentUpdate, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin"))
+    current_user: User = Depends(require_role("HSE Manager"))
 ):
     db_incident = db.query(Incident).filter(Incident.incident_id == incident_id).first()
     if not db_incident:
@@ -145,7 +145,7 @@ def update_incident(
 def delete_incident(
     incident_id: uuid.UUID, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("Admin"))
+    current_user: User = Depends(require_role("HSE Manager"))
 ):
     db_incident = db.query(Incident).filter(Incident.incident_id == incident_id).first()
     if not db_incident:
