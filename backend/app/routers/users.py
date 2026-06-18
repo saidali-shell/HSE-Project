@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from typing import List
 import uuid
 
@@ -92,22 +92,35 @@ async def create_user(
 
 @router.get("/users", response_model=List[schemas.UserResponse], tags=["User Management"])
 async def get_all_users(
+    search: str = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role("Admin", "HSE Manager")),
 ):
     """
-    Retrieve all users with pagination.
+    Retrieve all users with optional search and pagination.
     
     **Query Parameters:**
+    - search: Optional search term to filter by full_name or email (case-insensitive, partial match)
     - skip: Number of users to skip (default: 0)
     - limit: Maximum number of users to return (default: 100)
     
     **Response:**
-    - Returns a list of all users
+    - Returns a list of matching users
     """
-    users = db.query(models.User).offset(skip).limit(limit).all()
+    query = db.query(models.User)
+    
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                models.User.full_name.ilike(search_pattern),
+                models.User.email.ilike(search_pattern)
+            )
+        )
+    
+    users = query.offset(skip).limit(limit).all()
     return users
 
 
