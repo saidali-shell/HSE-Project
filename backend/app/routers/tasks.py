@@ -41,11 +41,13 @@ class StatusUpdate(BaseModel):
 def get_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    page: int = 1,
+    size: int = 100,
 ):
 
     tasks = db.query(Task).filter(
         Task.is_deleted == False
-    ).all()
+    ).offset((page - 1) * size).limit(size).all()
 
     if not tasks:
         return {
@@ -62,12 +64,14 @@ def get_tasks(
 def get_my_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    page: int = 1,
+    size: int = 100,
 ):
 
     tasks = db.query(Task).filter(
         Task.assigned_to == str(current_user.user_id),
         Task.is_deleted == False
-    ).all()
+    ).offset((page - 1) * size).limit(size).all()
 
     if not tasks:
         return {
@@ -333,22 +337,6 @@ def update_status(
     }
 
 
-# OVERDUE TASKS (MANAGER VIEW)
-@router.get("/overdue")
-def get_overdue_tasks(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
-):
-
-    today = date.today()
-    tasks = db.query(Task).filter(
-        Task.due_date < today,
-        Task.status != "Done",
-        Task.is_deleted == False
-    ).all()
-
-    return tasks
-
 
 # SOFT DELETE TASK
 
@@ -385,11 +373,13 @@ def delete_task(
 def task_board(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    page: int = 1,
+    size: int = 100,
 ):
 
     tasks = db.query(Task).filter(
         Task.is_deleted == False
-    ).all()
+    ).offset((page - 1) * size).limit(size).all()
 
     board = {
         "todo": [],
@@ -425,11 +415,13 @@ def get_tasks_by_incident(
     incident_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    page: int = 1,
+    size: int = 100,
 ):
 
     tasks = db.query(Task).filter(
         Task.incident_id == incident_id,
         Task.is_deleted == False
-    ).all()
+    ).offset((page - 1) * size).limit(size).all()
 
     return tasks
