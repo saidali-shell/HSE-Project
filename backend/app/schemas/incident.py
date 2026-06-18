@@ -48,4 +48,4 @@ class PaginatedIncidentResponse(BaseModel):
     size: int
 
 class IncidentSummaryResponse(BaseModel):
-    status_counts: Dict[str, int]
+    status_counts: Dict[str, int]
