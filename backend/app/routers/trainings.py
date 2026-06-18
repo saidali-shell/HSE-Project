@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Optional, Union
 import uuid
 from pydantic import BaseModel
@@ -14,7 +14,7 @@ from backend.app.schemas import (
     TrainingUpdate,
     ApprovalResponse,
 )
-from backend.app.auth import require_role
+from backend.app.auth import require_role, get_current_user
 
 
 # Local lightweight response model for employee training status
@@ -61,7 +61,8 @@ def read_root():
 def list_trainings(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=10),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
 ):
     offset = (page - 1) * size
 
@@ -73,19 +74,33 @@ def list_trainings(
     )
 
     return [_employee_training_status(training) for training in trainings]
-@router.get("/manager/trainings", response_model=List[TrainingResponse])
+@router.get("/manager/trainings", response_model=Union[List[TrainingResponse], dict])
 def manager_list_trainings(
     title: Optional[str] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
 ):
+    if start_date and end_date and end_date < start_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="To Date cannot be earlier than From Date",
+        )
+
     query = db.query(Training)
 
     if title:
         query = query.filter(
             Training.title.ilike(f"%{title}%")
         )
+
+    if start_date:
+        query = query.filter(Training.start_date >= start_date)
+    if end_date:
+        query = query.filter(Training.end_date <= end_date)
 
     offset = (page - 1) * size
 
@@ -96,12 +111,15 @@ def manager_list_trainings(
         .all()
     )
 
+    if (start_date or end_date) and not trainings:
+        return {"message": "No training records exist within the selected date range."}
+
     return trainings
 
 
 
 @router.get("/trainings/{training_id}", response_model=Union[TrainingResponse, EmployeeTrainingStatusResponse])
-def get_training(training_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_training(training_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(require_role("HSE Manager", "Admin"))):
     """Get a specific training by ID."""
     training = db.query(Training).filter(Training.training_id == training_id).first()
     if not training:
@@ -130,6 +148,18 @@ def create_training(
     assigned_user = db.query(User).filter(User.user_id == training.assigned_to).first()
     if not assigned_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assigned user not found")
+    if assigned_user.role != "Employee":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Training can only be assigned to an Employee")
+
+    duplicate_training = db.query(Training).filter(
+        Training.title == training.title,
+        Training.assigned_to == training.assigned_to,
+    ).first()
+    if duplicate_training:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Employee is already enrolled in this training program",
+        )
 
     new_training = Training(
         incident_id=training.incident_id,
@@ -154,6 +184,7 @@ def update_training(
     training_id: uuid.UUID,
     training_update: TrainingUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("HSE Manager", "Admin")),
 ):
     """Update a training status."""
     training = db.query(Training).filter(Training.training_id == training_id).first()
@@ -197,7 +228,7 @@ def update_training(
 
 
 @router.delete("/trainings/{training_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_training(training_id: uuid.UUID, db: Session = Depends(get_db)):
+def delete_training(training_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(require_role("HSE Manager", "Admin"))):
     """Delete a training."""
     training = db.query(Training).filter(Training.training_id == training_id).first()
     if not training:
@@ -208,28 +239,49 @@ def delete_training(training_id: uuid.UUID, db: Session = Depends(get_db)):
     return None
 
 
-@router.patch("/trainings/{training_id}/request-review", response_model=ApprovalResponse)
-def request_training_review(training_id: uuid.UUID, training_update: TrainingUpdate, db: Session = Depends(get_db)):
-    """Employee requests a review/approval. Accepts only `status` (and optional comments via Approval comments field).
+@router.get("/trainings/user/{user_id}", response_model=Union[List[TrainingResponse], dict])
+def get_trainings_by_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Allow an employee to view trainings assigned to a specific user ID."""
+    if current_user.role == "Employee" and current_user.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view this user's trainings")
 
-    This will update the training status (if provided) and create an Approval record with
-    `requested_by` set to the training's assignee.
+    trainings = db.query(Training).filter(Training.assigned_to == user_id).all()
+    if current_user.role == "Employee" and not trainings:
+        return {"message": "No Training Assigned"}
+    return trainings
+
+
+@router.patch("/trainings/{training_id}/request-review", response_model=ApprovalResponse)
+def request_training_review(
+    training_id: uuid.UUID,
+    training_update: TrainingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Employee or manager requests a review/approval for a training.
+
+    If an Employee calls this, they may only request review for their own training.
+    Managers may request review for any training.
     """
     training = db.query(Training).filter(Training.training_id == training_id).first()
     if not training:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Training not found")
 
+    if current_user.role == "Employee" and current_user.user_id != training.assigned_to:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to request review for this training")
+
     update_data = training_update.dict(exclude_unset=True)
 
-    # Only allow the assigned user to request a review — assume caller sets training.assigned_to elsewhere or auth handles it.
-    # Force the training into Review state for approval request
     training.status = "Review"
 
-    # Create approval requested by the assigned user
     new_approval = Approval(
         module_type="TRAINING",
         reference_id=training_id,
-        requested_by=training.assigned_to,
+        requested_by=current_user.user_id,
         comments=update_data.get("comments", None),
         status="Pending",
     )
