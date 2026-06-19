@@ -11,7 +11,7 @@ from backend.app.database import engine  # noqa: F401  (creates DB engine)
 from backend.app.core.rate_limit import limiter
 
 # Import routers
-from backend.app.routers import auth, users, incidents,tasks, dashboard
+from backend.app.routers import auth, users, incidents,tasks , dashboard
 
 app = FastAPI(
     title="HSE Management API",
