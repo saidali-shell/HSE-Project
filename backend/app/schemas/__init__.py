@@ -7,7 +7,12 @@ from backend.app.schemas.task import TaskBase, TaskCreate, TaskUpdate, TaskRespo
 from backend.app.schemas.training import TrainingBase, TrainingCreate, TrainingUpdate, TrainingResponse
 from backend.app.schemas.approval import ApprovalBase, ApprovalCreate, ApprovalUpdate, ApprovalResponse
 from backend.app.schemas.dashboard import (
-    DashboardSummary, IncidentStats, TaskStats, TrainingStats, ApprovalStats
+    DashboardSummaryResponse,
+    IncidentChartResponse,
+    TaskStatsResponse,
+    TrainingStatsResponse,
+    ApprovalStatsResponse,
+    EmployeeDashboardResponse,
 )
 
 __all__ = [
@@ -17,5 +22,6 @@ __all__ = [
     "TaskBase", "TaskCreate", "TaskUpdate", "TaskResponse",
     "TrainingBase", "TrainingCreate", "TrainingUpdate", "TrainingResponse",
     "ApprovalBase", "ApprovalCreate", "ApprovalUpdate", "ApprovalResponse",
-    "DashboardSummary", "IncidentStats", "TaskStats", "TrainingStats", "ApprovalStats",
+    "DashboardSummaryResponse", "IncidentChartResponse", "TaskStatsResponse",
+    "TrainingStatsResponse", "ApprovalStatsResponse", "EmployeeDashboardResponse",
 ]
