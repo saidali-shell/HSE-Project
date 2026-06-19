@@ -40,7 +40,7 @@ class StatusUpdate(BaseModel):
 @router.get("/")
 def get_tasks(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
     page: int = 1,
     size: int = 100,
 ):
@@ -86,7 +86,7 @@ def get_my_tasks(
 @router.get("/overdue")
 def get_overdue_tasks(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
     page: int = 1,
     size: int = 100,
 ):
@@ -111,7 +111,7 @@ def get_overdue_tasks(
 @router.get("/board")
 def task_board(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
     page: int = 1,
     size: int = 100,
 ):
@@ -155,7 +155,7 @@ def task_board(
 def get_tasks_by_incident(
     incident_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
     page: int = 1,
     size: int = 100,
 ):
@@ -188,7 +188,7 @@ def get_task(
             detail="Task not found"
         )
 
-    if current_user.role not in ["HSE Manager", "Admin"] and task.assigned_to != current_user.user_id:
+    if current_user.role not in ["HSE Manager"] and task.assigned_to != current_user.user_id:
         raise HTTPException(
             status_code=403,
             detail="You are not authorized to view this task."
@@ -210,7 +210,7 @@ ALLOWED_STATUSES = [
 def create_task(
     task: TaskCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
 ):
 
     if task.priority not in ALLOWED_PRIORITIES:
@@ -289,7 +289,7 @@ def update_task(
     task_id: str,
     payload: TaskUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
 ):
     if payload.priority is not None:
 
@@ -361,11 +361,11 @@ def update_status(
         )
 
     # Check authorization: user can only update status for their own tasks
-    # Managers/Admins can update any task status
-    is_manager_or_admin = current_user.role in ["HSE Manager", "Admin"]
+    # Managerscan update any task status
+    is_manager = current_user.role in ["HSE Manager"]
     is_task_assigned_to_user = task.assigned_to == current_user.user_id
 
-    if not (is_manager_or_admin or is_task_assigned_to_user):
+    if not (is_manager or is_task_assigned_to_user):
         raise HTTPException(
             status_code=403,
             detail="You can only update status for tasks assigned to you"
@@ -431,7 +431,7 @@ def update_status(
 def delete_task(
     task_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
 ):
 
     task = db.query(Task).filter(
@@ -459,7 +459,7 @@ def delete_task(
 @router.get("/board")
 def task_board(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
     page: int = 1,
     size: int = 100,
 ):
@@ -501,7 +501,7 @@ def task_board(
 def get_tasks_by_incident(
     incident_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("HSE Manager", "Admin")),
+    current_user: User = Depends(require_role("HSE Manager")),
     page: int = 1,
     size: int = 100,
 ):
