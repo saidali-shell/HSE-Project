@@ -160,7 +160,11 @@ def create_training(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Employee is already enrolled in this training program",
         )
-
+    if training.start_date >= training.end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Start date must be earlier than end date"
+    )
     new_training = Training(
         incident_id=training.incident_id,
         title=training.title,
@@ -192,6 +196,15 @@ def update_training(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Training not found")
 
     update_data = training_update.dict(exclude_unset=True)
+        # Determine final dates after update
+    new_start_date = update_data.get("start_date", training.start_date)
+    new_end_date = update_data.get("end_date", training.end_date)
+
+    if new_start_date >= new_end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Start date must be earlier than end date"
+        )
     if "assigned_to" in update_data:
         assigned_user = db.query(User).filter(User.user_id == update_data["assigned_to"]).first()
         if not assigned_user:
