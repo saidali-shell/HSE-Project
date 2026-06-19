@@ -4,18 +4,13 @@ from pydantic import BaseModel
 
 class DashboardSummaryResponse(BaseModel):
     total_users: int
+    total_incidents: int
     open_incidents: int
-    closed_incidents: int
-    under_investigation: int
+    high_critical_incidents: int
     open_tasks: int
-    pending_tasks: int
-    tasks_under_review: int
-    completed_tasks: int
     pending_approvals: int
-    completed_trainings: int
     incomplete_trainings: int
     training_completion_rate: float
-    overdue_trainings: int
     days_since_last_incident: Optional[int] = None
 
 
@@ -38,6 +33,7 @@ class TrainingStatsResponse(BaseModel):
     total_trainings: int
     completed_trainings: int
     incomplete_trainings: int
+    review_trainings: int
 
 
 class ApprovalStatsResponse(BaseModel):
