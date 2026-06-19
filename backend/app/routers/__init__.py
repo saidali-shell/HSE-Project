@@ -1,4 +1,3 @@
-from backend.app.routers import auth, users,tasks
+from backend.app.routers import auth, users,tasks,dashboard,trainings
 
-__all__ = ["auth", "users", 
-__all__ = ["auth", "users", "tasks", "trainings"]
+__all__ = ["auth", "users", "tasks", "trainings","dashboard"]
