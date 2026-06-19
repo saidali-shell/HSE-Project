@@ -13,7 +13,7 @@ CREATE TABLE trainings (
     created_by UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT trainings_status_check CHECK (status IN ('Completed', 'Incomplete'))
+    CONSTRAINT trainings_status_check CHECK (status IN ('Completed', 'Incomplete','Review'))
 );
 
 -- Index for searching trainings by status or assignee
