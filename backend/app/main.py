@@ -98,6 +98,5 @@ app.include_router(users.router, prefix="/api/v1", tags=["User Management"])
 app.include_router(incidents.router, prefix="/api/v1/incidents", tags=["Incidents"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["Tasks"])
 app.include_router(approval.router, prefix="/api/v1", tags=["Approval Workflow"])
-app.include_router(approval.router, prefix="/api/v1", tags=["Approval Workflow"])
 app.include_router(trainings.router, prefix="/api/v1/trainings", tags=["Training Management"])  # Adjust as needed for other routers
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
