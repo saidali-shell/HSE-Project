@@ -28,6 +28,9 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = None
     is_deleted: Optional[bool] = None
 
+class StatusUpdate(BaseModel):
+    status: Literal["To Do", "In Progress", "Review", "Done"]
+
 
 class StatusUpdate(BaseModel):
     status: Literal["To Do", "In Progress", "Review", "Done"]

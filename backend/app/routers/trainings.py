@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 from fastapi import Depends, APIRouter, HTTPException, Query, status
 from sqlalchemy.orm import Session
-
 from backend.app.models import Incident, Training, User, Approval
 from backend.app.schemas import (
     TrainingCreate,
@@ -309,6 +308,4 @@ def request_training_review(
     db.refresh(training)
     return new_approval
 
-
-# Approval actions are handled by the dedicated approvals module/service.
 
