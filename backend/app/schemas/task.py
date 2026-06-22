@@ -32,10 +32,6 @@ class StatusUpdate(BaseModel):
     status: Literal["To Do", "In Progress", "Review", "Done"]
 
 
-class StatusUpdate(BaseModel):
-    status: Literal["To Do", "In Progress", "Review", "Done"]
-
-
 class TaskResponse(TaskBase):
     task_id: uuid.UUID
     assigned_to: uuid.UUID
