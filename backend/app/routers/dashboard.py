@@ -19,37 +19,15 @@ from backend.app.schemas.dashboard import (
 router = APIRouter()
 
 
-VALID_PERIODS = {"all", "month", "quarter", "year"}
-
-def get_date_filter(period: str):
-    if period not in VALID_PERIODS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid period. Must be one of: {', '.join(VALID_PERIODS)}"
-        )
-    today = date.today()
-    if period == "month":
-        return date(today.year, today.month, 1)
-    elif period == "quarter":
-        quarter_start_month = ((today.month - 1) // 3) * 3 + 1
-        return date(today.year, quarter_start_month, 1)
-    elif period == "year":
-        return date(today.year, 1, 1)
-    return None
-
-
 @router.get("/summary", response_model=DashboardSummaryResponse)
 def get_dashboard_summary(
     db: Session = Depends(get_db),
-    period: str = "all",
     current_user: User = Depends(require_role("HSE Manager"))
 ):
-    start_date = get_date_filter(period)
-
     # Users
     total_users = db.query(User).count()
 
-    # Incidents — live counts (no filter)
+    # Incidents
     total_incidents = db.query(Incident).count()
     open_incidents = db.query(Incident).filter(Incident.status != "Closed").count()
     high_critical_incidents = db.query(Incident).filter(
@@ -57,35 +35,28 @@ def get_dashboard_summary(
         Incident.status != "Closed"
     ).count()
 
-    # Tasks — live counts (no filter)
+    # Tasks
     open_tasks = db.query(Task).filter(
         Task.status != "Done",
         Task.is_deleted == False
     ).count()
 
-    # Approvals — live counts (no filter)
+    # Approvals
     pending_approvals = db.query(Approval).filter(Approval.status == "Pending").count()
 
-    # Trainings — live counts (no filter)
+    # Trainings
     incomplete_trainings = db.query(Training).filter(
         Training.status.in_(["Incomplete", "Review"])
     ).count()
-
-    # Days since last incident — always latest
-    latest_incident = db.query(func.max(Incident.incident_date)).scalar()
-    days_since_last_incident = (date.today() - latest_incident).days if latest_incident else None
-
-    # Cumulative fields — period filter applied
-    training_q = db.query(Training)
-
-    if start_date:
-        training_q = training_q.filter(Training.created_at >= start_date)
-
-    total_trainings = training_q.count()
-    completed_trainings = training_q.filter(Training.status == "Completed").count()
+    total_trainings = db.query(Training).count()
+    completed_trainings = db.query(Training).filter(Training.status == "Completed").count()
     training_completion_rate = round(
         (completed_trainings / total_trainings * 100) if total_trainings > 0 else 0.0, 2
     )
+
+    # Days since last incident
+    latest_incident = db.query(func.max(Incident.incident_date)).scalar()
+    days_since_last_incident = (date.today() - latest_incident).days if latest_incident else None
 
     return {
         "total_users": total_users,
