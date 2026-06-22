@@ -22,7 +22,9 @@ class Incident(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
     # Relationships
     reporter = relationship("User", back_populates="incidents_reported", foreign_keys=[reported_by])
+
     tasks = relationship("Task", back_populates="incident")
     trainings = relationship("Training", back_populates="incident")

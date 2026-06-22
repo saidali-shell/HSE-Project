@@ -9,11 +9,13 @@ from backend.app.auth import (
     create_access_token,
     decode_access_token,
 )
+from backend.app.core.rate_limit import limiter
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=schemas.TokenResponse, tags=["Authentication"])
+@limiter.limit("5/minute")
 async def login(request: Request, login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
     """
     User login endpoint.
@@ -52,8 +54,12 @@ async def login(request: Request, login_request: schemas.LoginRequest, db: Sessi
             detail="Invalid email or password",
         )
     
-    # Create access token
-    access_token = create_access_token(data={"sub": str(user.user_id), "role": user.role})
+    # Create access token with updated_at for instant revocation on password reset
+    access_token = create_access_token(data={
+        "sub": str(user.user_id),
+        "role": user.role,
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+    })
     
     return schemas.TokenResponse(
         access_token=access_token,

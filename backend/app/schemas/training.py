@@ -11,7 +11,7 @@ class TrainingBase(BaseModel):
     description: str
     instructor: str = Field(..., max_length=255)
     assigned_to: uuid.UUID
-    status: Literal["Completed", "Incomplete"] = "Incomplete"
+    status: Literal["Completed", "Incomplete", "Review"] = "Incomplete"
     start_date: datetime
     end_date: datetime
 
@@ -27,7 +27,7 @@ class TrainingUpdate(BaseModel):
     instructor: Optional[str] = None
     assigned_to: Optional[uuid.UUID] = None
     incident_id: Optional[uuid.UUID] = None
-    status: Optional[Literal["Completed", "Incomplete"]] = None
+    status: Optional[Literal["Completed", "Incomplete", "Review"]] = None
 
 
 class TrainingResponse(TrainingBase):

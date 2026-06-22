@@ -15,8 +15,7 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Password hashing context
-# Use pbkdf2_sha256 to avoid bcrypt C-extension issues in dev environments.
+# Password hashing context - use pbkdf2_sha256 (works reliably)
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # HTTP Bearer token security scheme
@@ -47,7 +46,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def decode_access_token(token: str) -> Optional[dict]:
-    """Decode and validate a JWT access token."""
+    """Decode and validate a JWT token."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
@@ -90,6 +89,16 @@ def get_current_user(
             detail="User not found or inactive",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    # Check if token was issued before last password update (instant revocation)
+    token_updated_at = payload.get("updated_at")
+    if token_updated_at and user.updated_at:
+        user_updated = user.updated_at.isoformat()
+        if token_updated_at != user_updated:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token revoked. Please login again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     return user
 
 
