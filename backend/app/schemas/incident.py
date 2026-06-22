@@ -38,3 +38,14 @@ class IncidentResponse(IncidentBase):
 
     class Config:
         from_attributes = True
+
+from typing import List, Dict
+
+class PaginatedIncidentResponse(BaseModel):
+    items: List[IncidentResponse]
+    total_count: int
+    page: int
+    size: int
+
+class IncidentSummaryResponse(BaseModel):
+    status_counts: Dict[str, int]

@@ -1,3 +1,3 @@
-from backend.app.routers import auth, users, approval
+from backend.app.routers import auth, users,tasks,dashboard,trainings, approval
 
-__all__ = ["auth", "users", "approval"]
+__all__ = ["auth", "users", "tasks", "trainings","dashboard", "approval"]
