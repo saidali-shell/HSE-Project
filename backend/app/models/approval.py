@@ -14,18 +14,39 @@ class Approval(Base):
     approval_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     module_type = Column(String(20), nullable=False)
     reference_id = Column(UUID(as_uuid=True), nullable=False)
-    requested_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=False)
-    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    requested_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.user_id", ondelete="RESTRICT"),
+        nullable=False
+    )
+    approved_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.user_id", ondelete="SET NULL"),
+        nullable=True
+    )
     status = Column(String(20), nullable=False, default="Pending")
     comments = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
- 
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )
+
     # Relationships
-    requester = relationship("User", back_populates="approvals_requested", foreign_keys=[requested_by])
-    approver = relationship("User", back_populates="approvals_actioned", foreign_keys=[approved_by])
- 
-    # Polymorphic relationships based on module_type
+    requester = relationship(
+        "User",
+        back_populates="approvals_requested",
+        foreign_keys=[requested_by]
+    )
+
+    approver = relationship(
+        "User",
+        back_populates="approvals_actioned",
+        foreign_keys=[approved_by]
+    )
+
+    # TASK approval
     task = relationship(
         "Task",
         primaryjoin=lambda: and_(
@@ -35,6 +56,8 @@ class Approval(Base):
         viewonly=True,
         uselist=False
     )
+
+    # TRAINING approval
     training = relationship(
         "Training",
         primaryjoin=lambda: and_(
