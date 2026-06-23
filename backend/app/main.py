@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from slowapi import _rate_limit_exceeded_handler
+from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from backend.app import models  # noqa: F401  (ensures models are imported for SQLAlchemy metadata)
@@ -11,7 +11,7 @@ from backend.app.database import engine  # noqa: F401  (creates DB engine)
 from backend.app.core.rate_limit import limiter
 
 # Import routers
-from backend.app.routers import auth, users, incidents,tasks
+from backend.app.routers import auth, users, incidents,tasks , dashboard, trainings, approval
 
 app = FastAPI(
     title="HSE Management API",
@@ -97,4 +97,6 @@ app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1", tags=["User Management"])
 app.include_router(incidents.router, prefix="/api/v1/incidents", tags=["Incidents"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["Tasks"])
-
+app.include_router(approval.router, prefix="/api/v1", tags=["Approval Workflow"])
+app.include_router(trainings.router, prefix="/api/v1/trainings", tags=["Training Management"])  
+app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
