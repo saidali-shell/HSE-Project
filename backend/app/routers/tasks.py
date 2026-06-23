@@ -55,6 +55,11 @@ def get_overdue_tasks(
         Task.is_deleted == False
     ).offset((page - 1) * size).limit(size).all()
 
+    if not tasks:
+        return {
+            "message": "No overdue tasks found."
+        }
+
     return tasks
 
 
@@ -75,6 +80,10 @@ def task_board(
         "review": [],
         "done": []
     }
+    if not tasks:
+        return {
+            "message": "No tasks available."
+        }
 
     for task in tasks:
         item = {
@@ -94,7 +103,7 @@ def task_board(
     return board
 
 
-@router.get("/incidents/{incident_id}/tasks", response_model=List[TaskResponse])
+@router.get("/incidents/{incident_id}/tasks")
 def get_tasks_by_incident(
     incident_id: uuid.UUID,
     db: Session = Depends(get_db),
@@ -102,10 +111,28 @@ def get_tasks_by_incident(
     page: int = Query(1, ge=1),
     size: int = Query(100, ge=1, le=100),
 ):
+
+    # Check whether incident exists
+    incident = db.query(Incident).filter(
+        Incident.incident_id == incident_id
+    ).first()
+
+    if not incident:
+        raise HTTPException(
+            status_code=404,
+            detail="Incident not found."
+        )
+
+    # Get tasks for incident
     tasks = db.query(Task).filter(
         Task.incident_id == incident_id,
         Task.is_deleted == False
     ).offset((page - 1) * size).limit(size).all()
+
+    if not tasks:
+        return {
+            "message": "No tasks found for this incident."
+        }
 
     return tasks
 
@@ -127,7 +154,7 @@ def get_task(
             detail="Task not found"
         )
 
-    if current_user.role not in ["HSE Manager", "Admin"] and task.assigned_to != current_user.user_id:
+    if current_user.role not in ["HSE Manager"] and task.assigned_to != current_user.user_id:
         raise HTTPException(
             status_code=403,
             detail="You are not authorized to view this task."
@@ -277,13 +304,16 @@ def update_status(
             detail="Task not found"
         )
 
-    is_manager = current_user.role in ["HSE Manager", "Admin"]
-    is_task_assigned_to_user = task.assigned_to == current_user.user_id
-
-    if not (is_manager or is_task_assigned_to_user):
+    if current_user.role != "Employee":
         raise HTTPException(
             status_code=403,
-            detail="You can only update status for tasks assigned to you"
+            detail="Only employees can update task status."
+        )
+
+    if task.assigned_to != current_user.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only update tasks assigned to you."
         )
 
     valid_transitions = {
@@ -294,11 +324,10 @@ def update_status(
     }
 
     if payload.status not in valid_transitions.get(task.status, []):
-        if not is_manager:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Task can only move from '{task.status}' to {valid_transitions.get(task.status, [])}"
-            )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task can only move from '{task.status}' to {valid_transitions.get(task.status, [])}"
+        )
 
     task.status = payload.status
 
@@ -306,20 +335,36 @@ def update_status(
         Incident.incident_id == task.incident_id
     ).first()
 
-    if payload.status == "In Progress" and incident:
-        incident.status = "Under Investigation"
+    # To Do -> In Progress
+    if payload.status == "In Progress":
 
-    elif payload.status == "Review" and incident:
-        incident.status = "Resolved"
+        if incident:
+            incident.status = "Under Investigation"
 
-        approval = Approval(
-            approval_id=uuid.uuid4(),
-            module_type="TASK",
-            reference_id=task.task_id,
-            requested_by=task.assigned_to,
-            status="Pending"
-        )
-        db.add(approval)
+    # In Progress -> Review
+    elif payload.status == "Review":
+
+        if incident:
+            incident.status = "Resolved"
+
+        # Prevent duplicate pending approvals
+        existing_approval = db.query(Approval).filter(
+            Approval.module_type == "TASK",
+            Approval.reference_id == task.task_id,
+            Approval.status == "Pending"
+        ).first()
+
+        if not existing_approval:
+
+            approval = Approval(
+                approval_id=uuid.uuid4(),
+                module_type="TASK",
+                reference_id=task.task_id,
+                requested_by=task.assigned_to,
+                status="Pending"
+            )
+
+            db.add(approval)
 
     db.commit()
     db.refresh(task)
