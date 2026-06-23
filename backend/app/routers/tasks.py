@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=List[TaskResponse])
-def get_tasks(
+def get_all_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("HSE Manager")),
     page: int = Query(1, ge=1),
@@ -64,7 +64,7 @@ def get_overdue_tasks(
 
 
 @router.get("/board")
-def task_board(
+def task_board_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("HSE Manager")),
     page: int = Query(1, ge=1),
@@ -138,7 +138,7 @@ def get_tasks_by_incident(
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
-def get_task(
+def get_task_taskid(
     task_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -223,7 +223,7 @@ def create_task(
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
-def update_task(
+def update_task_details(
     task_id: uuid.UUID,
     payload: TaskUpdate,
     db: Session = Depends(get_db),
